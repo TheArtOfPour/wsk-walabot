@@ -55,18 +55,57 @@
     <script src="./scripts/pizzicato/distr/Pizzicato.min.js"></script>
 
     <script>
-        let sawtoothWave = new Pizzicato.Sound({
-            source: 'wave',
-            options: {
-                type: 'sawtooth'
-            }
-        });
+        let apiURL = 'http://localhost:5000/walabot/api/v1.0/imageenergy';
+        let minFreq = 200;
+        let maxFreq = 1000;
+        let minEnergy = 0;
+        let maxEnergy = 150;
+        let sineWave = null;
+        function getTone() {
+            let xhttp = new XMLHttpRequest();
+            xhttp.onreadystatechange = function() {
+                if (this.readyState == 4) {
+                    if (this.status == 200) {
+                        if (sineWave) {
+                            sineWave.stop();
+                        }
+                        let energy = JSON.parse(this.responseText).energy;
+                        energy = Math.abs(energy);
+                        //~0.0 to ~150.0 Energy
+                        //200 to 1000 hz
+                        //Y = (X-A)/(B-A) * (D-C) + C
+                        //frequency must be in 37 thru 32767
+                        frequency = ((energy - minEnergy) / (maxEnergy - minEnergy)) * ((maxFreq - minFreq) + minFreq);
+                        console.log(energy + ":" + frequency);
+                        sineWave = new Pizzicato.Sound({
+                            source: 'wave',
+                            options: {
+                                type: 'sawtooth',
+                                frequency: frequency
+                            }
+                        });
+                        sineWave.attack = 0.5;
+                        sineWave.release = 0.8;
+                        let delay = new Pizzicato.Effects.Delay({
+                            feedback: 0.5,
+                            time: 0.3,
+                            mix: 0.5
+                        });
 
-        let delay = new Pizzicato.Effects.Delay();
-        sawtoothWave.addEffect(delay);
+                        sineWave.addEffect(delay);
 
-        sawtoothWave.play();
-
+                        sineWave.play();
+                        setTimeout(getTone(), 50);
+                    }
+                    else {
+                        setTimeout(getTone(), 500);
+                    }
+                }
+            };
+            xhttp.open("GET", apiURL, true);
+            xhttp.send();
+        }
+        getTone();
     </script>
 
 </head>
